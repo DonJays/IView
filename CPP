@@ -1,0 +1,67 @@
+
+
+9. how do u achieve polymorphism- how many V-tables created
+10.  sort 100110
+11. factorial program
+12. Inheritence
+13. Deletion of linked list
+14.  what is inline
+16.	can we have exception within constructor
+17.	how can we delete an element in a list
+18.	what is the difference between struct and union
+19.	how can i store integer variable in 2 bytes in struct
+20.	how many different ways you can access elements of an array
+21.	what is function pointer
+22.	and syntax of function pointer
+23.	ans where will you use function pointer
+24.	abstract class and its use
+25.	what is abstraction
+26.	How many nested try-catch blocks can we have
+27.	- private protected
+28.	- exception
+29.	- macros
+30.	- constants and assigning values
+31.	- smart pointers
+32.	- singleton class and use
+33.	- diamond inheritance and how to solve it
+34.	- overloading and overriding
+35.	- write a function to reverse a string
+36.	- write a function to find the number of one's in a binary equivalent number
+37.	- shallow copy and deep copy
+38.	- how you can make derived class to not share its try-catch block with its base class
+39.	- template specialization
+40.	- inline and macro definition differences
+41.	- abstract class
+42.	- interface
+43.	- exceptions
+
+
+1.	exclusive -or operator - ^
+
+2.	Struct{
+	char * name;
+	int age;
+	}
+	
+3.	1. create typedef for above
+	2. create pointer index of 5
+	3. dynmice allocate
+	4. read from user
+	5. deallocate
+4	---- in C++ default constructor4.	
+	II pointer to function in typedef with return value int
+	III  swap with pointer and reference
+	IV cluster table in Oracle
+	V &=, |=  explain
+	VI atexit(func)
+5.	for(int i=0; i<0xffffff;i++);
+	_exit(0)
+	
+	atexit()- calls or not
+	
+6.	VII - constant pointer - pointer constant
+7.	VIII- fork system call
+8.	IX- what u expect from the new organization
+
+
+
