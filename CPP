@@ -63,5 +63,27 @@
 7.	VIII- fork system call
 8.	IX- what u expect from the new organization
 
+1.	Why we need runtime polymorphism -  Factory design pattern – here no need to change the client code – as implementing DLL/runtime library
+2.	Challenge – how we can restrict from the access/unwanted from DLL
+3.	Protected inheritance -  benefits
+4.	Base class and inheritance usage?
+5.	Data abstraction vs data encapsulation
+6.	What is PROCESS why we need and is there any difference between process and thread!!
+7.	Differences between Static and Dynamic library
+8.	Factory design pattern
+9.	 Explain in technical words like abstract – client – how to achieve
+10.	Frameworks – library – API development -  
+11.	MVC -  Observer/Observable 
+12.	If data not used in class – interface
+13.	What is abstract class and why we need it
+14.	 the Experience using Object Oriented concepts (inheritance, overriding, overloading, etc.)
+15.	 C++, XML, Reader Protocol, RFID, Sockets, multi threading, DOM. sockets on Linux
 
+1.	How you initialize const int member in a class
+2.	You have base class and virtual function and you have to overrided that function in derived class
+3.	but when you create an object of derived class you want to make sure only base class function is called not the derived class override function
+4.	recursive functions
+5.	write a linked list to reverse
+6.	What is memory leak
+7.	why memory leaks, how it happens, how you find it, how you fix it-
 
