@@ -2,14 +2,20 @@
 Object-Oriented Programming (OOP)
 Data Structures
 Algorithms
-Multithreading
+concurrent/multi-thread programming.
+Standard Template Library (STL)
 Software Development Life Cycle (SDLC) -- Software Design/Software Development
 Debugging
 
 ===== ========== ========== =====
 ========== Telecom ==========
 Internet Protocol Suite (TCP/IP)
-Session Initiation Protocol (SIP)
+VoIP protocols (SIP) Session Initiation Protocol
+Socket Programming
+In depth experience in VOIP / SIP / RTSP / XMPP protocols
+Good knowledge of RTP/RTCP protocols.
+
+
 
 ===== ========== ========== =====
     
