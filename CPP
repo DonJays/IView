@@ -1,3 +1,21 @@
+========== KNOWELEDGE ==========
+Object-Oriented Programming (OOP)
+Data Structures
+Algorithms
+Multithreading
+Software Development Life Cycle (SDLC) -- Software Design/Software Development
+Debugging
+
+===== ========== ========== =====
+========== Telecom ==========
+Internet Protocol Suite (TCP/IP)
+Session Initiation Protocol (SIP)
+
+===== ========== ========== =====
+    
+    
+    
+    
 
 
 9. how do u achieve polymorphism- how many V-tables created
