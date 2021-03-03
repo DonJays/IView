@@ -111,3 +111,16 @@ Good knowledge of RTP/RTCP protocols.
 6.	What is memory leak
 7.	why memory leaks, how it happens, how you find it, how you fix it-
 
+1. Difference between Struct and class
+2.  class abc{
+    } 
+    main (){
+    abc a = new abc();
+    abc a1();
+    will it work ?
+  3. function with two pointer integer and retruns pointer - write syntax
+  4. Function pointer with two integer pointer parameter - write syntax 
+  
+  1. Factory Method
+  2. 
+    
