@@ -8,13 +8,23 @@ Software Development Life Cycle (SDLC) -- Software Design/Software Development
 Debugging
 
 ===== ========== ========== =====
+========== Resource ==========
+http://www.globalguideline.com/interview_questions/Questions.php?sc=C_Plus_Plus_Friend
+===== ========== ========== =====
 ========== Telecom ==========
 Internet Protocol Suite (TCP/IP)
 VoIP protocols (SIP) Session Initiation Protocol
 Socket Programming
 In depth experience in VOIP / SIP / RTSP / XMPP protocols
 Good knowledge of RTP/RTCP protocols.
+========== SIP ==========
 
+--sip flow  -- https://www.tech-invite.com/fo-sip/tinv-fo-sip-service-04-05.html
+-- sip flow -- https://siptestingknowledge.blogspot.com/p/updates-in-blog.html
+-- SIP Q and A  -- https://www.wisdomjobs.com/e-university/session-initiation-protocol-interview-questions.htmll
+https://www.wisdomjobs.com/e-university/session-initiation-protocol-interview-questions.html
+-- ps://www.3cx.com/blog/voip-howto/sdp-voip2/
+-- RFC -- https://tools.ietf.org/html/rfc3261
 
 
 ===== ========== ========== =====
@@ -23,7 +33,7 @@ Good knowledge of RTP/RTCP protocols.
     
     
 
-
+========== C++ ==========
 9. how do u achieve polymorphism- how many V-tables created
 10.  sort 100110
 11. factorial program
