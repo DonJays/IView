@@ -1,0 +1,59 @@
+Cron and CronTab			
+      The Cron daemon is a built-in Linux utility that runs processes on your system at a scheduled time. and scripts.			
+      Cron reads the crontab (cron tables) for predefined commands 			
+      
+      crontab –e	To open the crontab configuration file for the current user		
+      crontab –l	List Existing Cron Jobs		
+      crontab -rm 
+      crontab -l > filename -- backup
+
+      a b c d e /directory/command output			
+      Field	Possible Values	Syntax	Description
+      [a] – Minute	0 – 59	7 * * * * 	The cron job is initiated every time the system clock shows 7 in the minute’s position.
+      [b] – Hour	0 – 23	0 7 * * *	The cron job runs any time the system clock shows 7am (7pm would be coded as 19).
+      [c] – Day	0 – 31	0 0 7 * * 	The day of the month is 7 which means that the job runs every 7th day of the month.
+      [d] – Month	0 = none and 12 = December	0 0 0 7 *	The numerical month is 7 which determines that the job runs only in July.
+      [e] – Day of the Week	0 = Sunday and 7 = Sunday	0 0 * * 7 	7 in the current position means that the job would only run on Sundays.
+			
+      Command			Cron Job
+      * * * * * who.sh			Run Cron Job Every Minute
+      30 * * * * who.sh			Run Cron Job Every 30 Minutes
+      0 * * * *who.sh			Run Cron Job Every Hour
+      0 0 * * * who.sh			Run Cron Job Every Day at Midnight
+      0 2 * * * who.sh			Run Cron Job at 2 am Every Day
+      0 0 1 * * who.sh			Run Cron Job Every 1st of the Month
+      0 0 15 * * who.sh			Run Cron Job Every 15th of the Month
+      0 0 0 12 * who.sh			Run Cron Job on December 1st – Midnight
+      0 0 * * 6 who.sh			Run Cron Job on Saturday at Midnight
+      */15 * * * *			The * means all values, and the /15 counts and repeats every 15th minute
+      0 4 * * 1-5 /root			Every day at 4 AM In this case, 1-5 specifies Monday – Friday.
+      0 4 * * 2,4 /root			This would run the code at 4 am on Tuesday and Thursday.
+      37 1-23/2 * * * /root			run every other day at 37 minutes past the hour: 1-23 specifies the range of hours, /2 sets the interval to every other hour.
+Reading Logfiles	
+      zcat 	– Displays all the contents of logfile.gz
+      zmore 	– See the file in pages, without decompressing the files
+      zgrep 	– Search inside a compressed file
+      grep 	– Find all occurrences of a search term in a file or filter a log file
+      tail 	– Output the last few lines of files
+      head 	– View the very beginning of text files
+      tail -f -n 5 /var/log/syslog	
+GREP
+
+      grep -i <search> <filename>			ignore case sensative	
+      grep -v <search> *			to exclude all lines that contain "search>"	
+      grep -l <search> *			To List Names of Matching Files	
+      grep -c <search> *			filename and count for the pattern serch	
+      To Display the Number of Lines Before or After a Search String				
+      grep –A 3 <search> Filename			– this command prints three lines after the match.	
+      grep -B 3 <search> filename			this command prints two lines before the match	
+      grep -C 2 <search> filename			this command prints two lines before and after the match.	
+      grep –n –C 2 <search> filename			To Display Line Numbers with grep Matches	
+      grep –m2 <search> filename			first two search from the file, if it is * then first two search from all the files	
+
+need to check the netstat -an if there is any establish connection to the ips: _IP_DB=""144.229.196.20[057]""
+      netstat -an | egrep ""${_IP_DB}"" | grep ESTABLISHED|grep -v grep|wc -l
+      
+Wily alert, you can go to the box it's alerting
+      do a ps -ef | grep -i wily
+      get the folder where the wili script is running
+      ps -ef | grep -i wily"						
