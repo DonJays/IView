@@ -3,3 +3,68 @@ What are Database Normal Forms?
 what is BCNF (Boyce-Codd Normal Form)?
    Even when a database is in 3rd Normal Form, still there would be anomalies resulted if it has more than one Candidate Key.
    Sometimes is BCNF is also referred as 3.5 Normal Form
+Highest Salary in each department
+    SELECT DeptID, MAX(Salary) FROM EmpDetails GROUP BY DeptID
+    SELECT 
+        EmpID 
+      , Name 
+      , Salary
+      , DeptId 
+   FROM Employee 
+   where 
+     (DeptId,Salary) 
+     in 
+     (select DeptId, max(salary) from Employee group by DeptId)
+Joins --   lets i want all emplyee's department it may be in Department table or not.
+Group By
+Uniq
+What is Index
+ndex refresh important while deletion - will be there any performance issue
+Finding duplicate values in a SQL table
+    SELECT
+    name,email, COUNT(*) AS CountOf
+    FROM @YourTable
+    GROUP BY name,email
+    HAVING COUNT(*)>1
+    
+    if you want the IDs of the dups use this:
+    SELECT
+    y.id,y.name,y.email
+    FROM @YourTable y
+        INNER JOIN (SELECT
+                        name,email, COUNT(*) AS CountOf
+                        FROM @YourTable
+                        GROUP BY name,email
+                        HAVING COUNT(*)>1
+                    ) dt ON y.name=dt.name AND y.email=dt.email
+                    
+ Second highest salary 
+      with ranks as(
+                   SELECT departmentid, 
+                   salary,
+                   row_number() over (partition by (departmentid) order by salary desc) as rank
+                   FROM   employees
+                    )
+       Select * 
+       from ranks
+       Where ranks.rank = 2  
+    
+If the departmentid having only one row, and if you consider that also. Then
+     ;with cte as(
+     select [rank] = dense_rank() over(
+     partition by departmentid
+     order by departmentid, salary desc
+     ), *
+     from employees
+     )
+     select ID, NAME, departmentid, salary from cte
+     where [rank] = 2
+     union all
+     select max(ID), max(NAME), departmentid, max(salary)
+     from cte
+     group by departmentid
+     having count([rank]) = 1;
+     
+2nd highest overall
+     SELECT TOP 1 * FROM (Select top 2 * FROM employees order by salary desc ) e Order by salary asc
+
