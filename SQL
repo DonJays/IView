@@ -67,4 +67,604 @@ If the departmentid having only one row, and if you consider that also. Then
      
 2nd highest overall
      SELECT TOP 1 * FROM (Select top 2 * FROM employees order by salary desc ) e Order by salary asc
+------ 
+============ Export - Sql script =====================================
+DECLARE GLOBAL TEMPORARY TABLE SESSION.ent_cntr
+(node_id decimal(10), cntr_num CHAR(6), start_dt date, end_dt date)
+WITH REPLACE NOT LOGGED ON COMMIT PRESERVE ROWS
+;
+
+INSERT INTO SESSION.ent_cntr(cntr_num, node_id, start_dt, end_dt)
+SELECT
+  cntr.cntr_num
+  , max(cntr.node_id)
+  , max(cntr.start_dt), cntr.end_dt
+FROM pfmc.nvt_tp_ent_cntr cntr
+INNER JOIN (SELECT cntr_num, MAX(COALESCE(end_dt,'9999-12-31')) end_dt
+            FROM pfmc.nvt_tp_ent_cntr GROUP BY cntr_num ) d ON d.cntr_num = cntr.cntr_num AND d.end_dt = COALESCE(cntr.end_dt,'9999-12-31')
+GROUP BY cntr.cntr_num, cntr.end_dt
+;
+
+DECLARE GLOBAL TEMPORARY TABLE SESSION.tp_ent (node_id INT, ent_typ_cd CHAR(10) ,cntr_num CHAR(6))
+WITH REPLACE NOT LOGGED ON COMMIT PRESERVE ROWS
+;
+
+insert into SESSION.tp_ent (node_id, ent_typ_cd, cntr_num)
+SELECT
+  desc.node_id, desc.ent_typ_cd, cntr.cntr_num
+FROM SESSION.ent_cntr cntr
+INNER JOIN (SELECT node_id, node_desc, ent_typ_cd FROM pfmc.nvt_tp_ent_desc WHERE end_dt IS NULL
+            UNION
+            SELECT desc.node_id,  node_desc, ent_typ_cd FROM pfmc.nvt_tp_ent_desc desc
+            INNER JOIN (SELECT x.node_id, MAX(x.end_dt) end_dt FROM pfmc.nvt_tp_ent_desc x GROUP BY x.node_id) max_rec ON max_rec.node_id=desc.node_id and max_rec.end_dt=desc.end_dt
+            WHERE NOT EXISTS (SELECT ni.node_id FROM pfmc.nvt_tp_ent_desc ni WHERE ni.end_dt IS NULL AND ni.node_id= desc.node_id)
+           ) desc ON desc.node_id=cntr.node_id
+;
+
+
+DECLARE GLOBAL TEMPORARY TABLE SESSION.sol_prod
+(chld_cntr_num CHAR(6) , chld_ent_typ_cd CHAR(10),rel_start_dt DATE, rel_end_dt DATE,  par_cntr_num CHAR(6), par_ent_typ_cd CHAR(10))
+WITH REPLACE NOT LOGGED ON COMMIT PRESERVE ROWS
+;
+
+insert into SESSION.sol_prod (chld_cntr_num, chld_ent_typ_cd, rel_start_dt, rel_end_dt, par_cntr_num, par_ent_typ_cd)
+select chld.cntr_num, chld.ent_typ_cd, rel.start_dt, rel.end_dt, par.cntr_num, par.ent_typ_cd
+from pfmc.nvt_tp_ent_rel rel
+inner join session.tp_ent chld on rel.chld_node_id=chld.node_id and chld.ent_typ_cd in ('AS','ASM')
+inner join session.tp_ent par on rel.parnt_node_id=par.node_id and par.ent_typ_cd in ('AGPF','AGPI','AIPF','AIPI','APM')
+;
+
+DECLARE GLOBAL TEMPORARY TABLE SESSION.prod_ga
+(chld_cntr_num CHAR(6) , chld_ent_typ_cd CHAR(10),rel_start_dt DATE, rel_end_dt DATE,  par_cntr_num CHAR(6), par_ent_typ_cd CHAR(10))
+WITH REPLACE NOT LOGGED ON COMMIT PRESERVE ROWS
+;
+
+insert into SESSION.prod_ga (chld_cntr_num, chld_ent_typ_cd, rel_start_dt, rel_end_dt, par_cntr_num, par_ent_typ_cd)
+select chld.cntr_num, chld.ent_typ_cd, rel.start_dt, rel.end_dt, par.cntr_num, par.ent_typ_cd
+from pfmc.nvt_tp_ent_rel rel
+inner join session.tp_ent chld on rel.chld_node_id=chld.node_id and chld.ent_typ_cd in ('AGPF','AGPI','AIPF','AIPI','APM')
+inner join session.tp_ent par on rel.parnt_node_id=par.node_id and par.ent_typ_cd in ('AGA')
+;
+
+DECLARE GLOBAL TEMPORARY TABLE SESSION.sol_prod_prnt (cntr_num CHAR(6))
+WITH REPLACE NOT LOGGED ON COMMIT PRESERVE ROWS
+;
+
+insert into SESSION.sol_prod_prnt(cntr_num)
+select distinct par_cntr_num from session.sol_prod
+;
+
+export to FILE_NAME of del modified by coldel~ nochardel striplzeros
+  select
+    CASE WHEN substr(s.chld_cntr_num,1,1) = 'Z' THEN ' ' || SUBSTR(s.chld_cntr_num,2) ELSE s.chld_cntr_num END
+    , CASE WHEN substr(s.par_cntr_num,1,1) = 'Z' THEN ' ' || SUBSTR(s.par_cntr_num,2) ELSE s.par_cntr_num END
+    , s.rel_start_dt, s.rel_end_dt
+    , CASE WHEN substr(p.par_cntr_num,1,1) = 'Z' THEN ' ' || SUBSTR(p.par_cntr_num,2) ELSE p.par_cntr_num END
+    , p.rel_start_dt, p.rel_end_dt
+  from session.sol_prod s
+  left outer join session.prod_ga p on p.chld_cntr_num=s.par_cntr_num
+union all
+select
+  CASE WHEN substr(p.chld_cntr_num,1,1) = 'Z' THEN ' ' || SUBSTR(p.chld_cntr_num,2) ELSE p.chld_cntr_num END
+  , CASE WHEN substr(p.chld_cntr_num,1,1) = 'Z' THEN ' ' || SUBSTR(p.chld_cntr_num,2) ELSE p.chld_cntr_num END
+  , c.start_dt, c.end_dt
+  , CASE WHEN substr(p.par_cntr_num,1,1) = 'Z' THEN ' ' || SUBSTR(p.par_cntr_num,2) ELSE p.par_cntr_num END
+  , p.rel_start_dt, p.rel_end_dt
+from session.prod_ga p
+INNER JOIN SESSION.ent_cntr c ON p.chld_cntr_num=c.cntr_num
+where not exists (select '' from SESSION.sol_prod_prnt s where s.cntr_num=p.chld_cntr_num)
+;
+
+================= Db2 system tables =======
+SELECT * FROM pfmc.COLUMNs;
+SELECT TABSCHEMA, count(1) FROM syscat.columns WHERE colname='life' GROUP BY TABSCHEMA;
+SELECT * FROM syscat.TABLES
+WHERE TABNAME LIKE '%lif%' ; tabschema='PFMC';
+SELECT * FROM PFMC_EXTRACT;
+SELECT DISTINCT(TABNAME) FROM SYSCAT.columns WHERE TABNAME LIKE '%DT%' AND TABSCHEMA = 'PFMC';
+
+=======     Sql complex one with, case condition =========================
+
+select       distinct        ric.agmt_pkge_id
+   , ric.agmt_elem_id
+   , ric.pers_id
+   , ric.nature
+   , case
+      when prod.admin_source_cd in ('A','P')
+      then (
+         case
+            when prod.val_inforce_cls not in ('CANC','CANCD','UNB','UNK')
+            then (
+               case
+                  when prod.aos_status_code in ('B','C') and spec.policy_part in ('BASE','LAYER')
+                  then 'PMP'
+                  when prod.aos_status_code='K' and spec.policy_part in ('BASE','LAYER')
+                  then 'WOP'
+                  when prod.aos_status_code='J' and spec.policy_part in ('BASE','LAYER')
+--                      then 'ETI'
+                        then 'PMP'
+                  when prod.aos_status_code in ('D','E','L','N')  and spec.policy_part in ('BASE','LAYER')
+--                  then 'RPU'
+                        then 'PMP'
+                  when prod.aos_status_code='A' and spec.policy_part='RDR'
+                  then 'PMP'
+                  when prod.aos_status_code='E' and spec.policy_part='RDR' and prod.val_inforce_cls='DPU'
+                  then 'RPU'
+                  else 'PMP'
+               end
+            ) else (
+               case
+                  when dt.dt_typ_cd = 14 and dt.gnrc_dt is not null
+                  then 'DTH'
+                  when (prod.aos_status_code in ('P','A') or paid.paid_to_dt=prod.prod_issue_dt)
+                  and spec.policy_part in ('BASE','LAYER')
+                  then 'NTO'
+                  when prod.aos_status_code='M'  and spec.policy_part in ('BASE','LAYER')
+                  then 'LAP'
+                  when prod.aos_status_code='Q' and tc_dt.conv_dt is not null
+                  and spec.policy_part in ('BASE','LAYER')
+                  then 'CNT'
+                  when prod.aos_status_code='Q' and prod.conv_type='T' and spec.policy_part in ('BASE','LAYER')
+                  then 'SUR'
+                  when prod.aos_status_code='C' and spec.policy_part='RDR'
+                  then 'EXP'
+                  else 'TRM'
+               end
+            )
+         end
+      )
+      when prod.admin_source_cd in ('V','U')
+      then (
+         case
+            when prod.val_inforce_cls not in ('CANC','CANCD','UNB','UNK')
+            then (
+               case
+
+--      PB#18003 - Reins w/ BAR to TAI  (will be used for TAIX-STATUS)
+                  when prod.aos_status_code='6' then    'BAR'
+                  when substr(ric.agmt_elem_id,10,4)    =       'RCIR'          and
+                        baseprod.aos_status_code='6' then    'BAR'
+
+                  when prod.aos_status_code in ('A','E','P','2')
+                  then 'PMP'
+                  when prod.aos_status_code='U'
+                  then 'WOP'
+                  when prod.aos_status_code='J'
+                  then 'RPU'
+                  else 'PMP'
+               end
+            ) else (
+               case
+                  when (prod.aos_status_code in ('D','E') or
+                                                (dt.dt_typ_cd = 14 and dt.gnrc_dt is not null)  )
+                  then 'DTH'
+                  when prod.aos_status_code='A'
+                  then 'TRM'
+                  when (prod.aos_status_code in ('N','C','F','H','R','W','V') or paid.paid_to_dt=prod.prod_issue_dt)
+                  then 'NTO'
+                  when prod.aos_status_code='L'
+                  then 'LAP'
+                  when prod.aos_status_code in ('S','T')
+                  then 'SUR'
+                  else 'TRM'
+               end
+            )
+         end
+      )
+      when prod.admin_source_cd in ( 'F','L' )
+      then (
+         case
+            when prod.val_inforce_cls not in ('CANC','CANCD','UNB','UNK')
+            then (
+               case
+                  when lp.lp_cntr_rsn_cd='WP'           then    'WOP'
+                  when prod.val_inforce_cls='RPUL'      then    'RPU'
+                  else 'PMP'
+               end
+            ) else (
+               case
+                  when (((lp.lp_cntr_rsn_cd='DC' and lp.lp_cntr_cd='T')
+                     or (lp.lp_cntr_rsn_cd='DP' and lp.lp_cntr_cd='S'))
+                     or (dt.dt_typ_cd = 14 and dt.gnrc_dt is not null)  )
+                        then 'DTH'
+                  when (lp.lp_cntr_rsn_cd in ('NN','PN','NR','NT','ON','RJ')
+                  or paid.paid_to_dt=prod.prod_issue_dt)
+                        then 'NTO'
+                  when lp.lp_cntr_rsn_cd='LP' and lp.lp_canc_rsn_cd='  '
+                        then 'LAP'
+--                when lp.lp_cntr_rsn_cd='CV' and tc_dt.conv_dt is not null
+                  when lp.lp_canc_rsn_cd='FC'
+                        then 'CNT'
+--                when lp.lp_cntr_rsn_cd='SR'
+                  when lp.lp_canc_rsn_cd='SR'
+                        then 'SUR'
+                  when lp.lp_cntr_cd = 'T' and lp.lp_cntr_rsn_cd='EX'
+                        then 'EXP'
+                  else 'TRM'
+               end
+            )
+         end
+      ) else '   '
+   end as status,
+   case
+      when month(prod.prod_issue_dt) <= month('VAL_DT')
+      then cast(char(year(current timestamp) + 1) as char(4))
+         ||substr(char(prod.prod_issue_dt,ISO),6,2)
+         ||substr(char(prod.prod_issue_dt,ISO),9,2)
+      else
+         cast(char(year(current timestamp)) as char(4))
+         ||substr(char(prod.prod_issue_dt,ISO),6,2)
+         ||substr(char(prod.prod_issue_dt,ISO),9,2)
+   end as paid_to_dt,
+   coalesce((
+      case
+         when prod.val_inforce_cls in ('CANC','CANCD','UNB','UNK')
+         then (
+            case
+               when prod.admin_source_cd in ('A','P')
+               then (
+               case
+                  when dt.gnrc_dt is not null
+                  then cast(replace(char(dt.gnrc_dt, iso),'-','') as char(8))
+                  when (paid.paid_to_dt=prod.prod_issue_dt
+                  or prod.aos_status_code in ('A','P'))
+                  and spec.policy_part in ('BASE','LAYER')
+                  then cast(replace(char(prod.prod_issue_dt, iso),'-','') as char(8))
+                  when prod.aos_status_code='M' and spec.policy_part in ('BASE','LAYER')
+                  then (
+                     case
+                        when fc_dt.xi_rpu_cd    in      ('RPU','XI')    and
+                             fc_dt.f_canc_dt = fc_dt.xi_rpu_end_dt + 1 days
+                                then    cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+                        when fc_dt.f_canc_dt > paid.paid_to_dt
+                                then cast(replace(char(paid.paid_to_dt, iso),'-','') as char(8))
+                        else cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+                     end
+                  )
+                  when prod.aos_status_code='Q' and tc_dt.conv_dt is not null and dt.gnrc_dt is null
+                     and spec.policy_part in ('BASE','LAYER')
+                  then (
+                     case
+                        when fc_dt.f_canc_dt > tc_dt.conv_dt
+                        then cast(replace(char(tc_dt.conv_dt, iso),'-','') as char(8))
+                        else cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+                     end
+                  )
+                  when prod.aos_status_code='Q' and prod.conv_type = 'T' and spec.policy_part in ('BASE','LAYER')
+                  then (
+                     case
+                        when fc_dt.xi_rpu_cd    in      ('RPU','XI')    and
+                             fc_dt.f_canc_dt = fc_dt.xi_rpu_end_dt + 1 days
+                                then    cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+                        when fc_dt.f_canc_dt > paid.paid_to_dt
+                                then cast(replace(char(paid.paid_to_dt, iso),'-','') as char(8))
+                        else cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+                     end
+                  )
+                  when prod.aos_status_code='C' and spec.policy_part='RDR'
+                  then cast(char(year(prod.prod_issue_dt + 10 years)) as char(4))
+                     ||substr(char(prod.prod_issue_dt,ISO),6,2)
+                     ||substr(char(prod.prod_issue_dt,ISO),9,2)
+                  else (
+                     case
+                        when dt.gnrc_dt is null
+                        then (
+                           case
+                                when fc_dt.xi_rpu_cd    in      ('RPU','XI')    and
+                                     fc_dt.f_canc_dt = fc_dt.xi_rpu_end_dt + 1 days
+                                        then    cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+                              when fc_dt.f_canc_dt > paid.paid_to_dt
+                                then cast(replace(char(paid.paid_to_dt, iso),'-','') as char(8))
+                              else cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+                           end
+                        ) else (
+                           case
+                              when (dt.gnrc_dt <= paid.paid_to_dt) and (dt.gnrc_dt <= fc_dt.f_canc_dt)
+                              then cast(replace(char(dt.gnrc_dt, iso),'-','') as char(8))
+                              when (paid.paid_to_dt <= dt.gnrc_dt) and (paid.paid_to_dt <= fc_dt.f_canc_dt)
+                              then cast(replace(char(paid.paid_to_dt, iso),'-','') as char(8))
+                              when (fc_dt.f_canc_dt <= dt.gnrc_dt) and (fc_dt.f_canc_dt <= paid.paid_to_dt)
+                              then cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+                           end
+                        )
+                        end
+                     )
+                     end
+                  )
+               when prod.admin_source_cd in ('V','U')
+               then (
+                  case
+                     when (prod.aos_status_code in ('D','E') or dt.gnrc_dt is not null)
+                     then coalesce(cast(replace(char(dt.gnrc_dt, iso),'-','') as char(8)),'00000000')
+                     when prod.aos_status_code in ('C','F','H','N','R','W','V') or paid.paid_to_dt=prod.prod_issue_dt
+                     then cast(replace(char(prod.prod_issue_dt, iso),'-','') as char(8))
+                     when prod.aos_status_code='L'
+                     then (
+                        case
+                           when fc_dt.xi_rpu_cd in      ('RPU','XI')    and
+                                fc_dt.f_canc_dt = fc_dt.xi_rpu_end_dt + 1 days
+                                then    cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+                           when fc_dt.f_canc_dt > paid.paid_to_dt
+                                then cast(replace(char(paid.paid_to_dt, iso),'-','') as char(8))
+                        else
+                           cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+                        end
+                     )
+                     when prod.aos_status_code in ('S','T')
+                     then (
+                        case
+                           when fc_dt.xi_rpu_cd in      ('RPU','XI')    and
+                                fc_dt.f_canc_dt = fc_dt.xi_rpu_end_dt + 1 days
+                                then    cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+                           when fc_dt.f_canc_dt > paid.paid_to_dt
+                                then cast(replace(char(paid.paid_to_dt, iso),'-','') as char(8))
+                           else cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+                        end
+                     ) else (
+                        case
+                           when dt.gnrc_dt is null
+                           then (
+                              case
+                                 when fc_dt.xi_rpu_cd   in      ('RPU','XI')    and
+                                      fc_dt.f_canc_dt = fc_dt.xi_rpu_end_dt + 1 days
+                                                then    cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+                                 when fc_dt.f_canc_dt > paid.paid_to_dt
+                                        then cast(replace(char(paid.paid_to_dt, iso),'-','') as char(8))
+                                 else cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+                              end
+                           ) else (
+                        case
+                           when (dt.gnrc_dt <= paid.paid_to_dt) and (dt.gnrc_dt <= fc_dt.f_canc_dt)
+                           then cast(replace(char(dt.gnrc_dt, iso),'-','') as char(8))
+                           when (paid.paid_to_dt <= dt.gnrc_dt) and (paid.paid_to_dt <= fc_dt.f_canc_dt)
+                           then cast(replace(char(paid.paid_to_dt, iso),'-','') as char(8))
+                           when (fc_dt.f_canc_dt <= dt.gnrc_dt) and (fc_dt.f_canc_dt <= paid.paid_to_dt)
+                           then cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+                        end
+                     )
+                  end
+               )
+            end
+         )
+      when prod.admin_source_cd in ( 'F', 'L' )
+      then
+      ( case
+            when (((lp.lp_cntr_rsn_cd='DC' and lp.lp_cntr_cd='T')
+               or (lp.lp_cntr_rsn_cd='DP' and lp.lp_cntr_cd='S'))
+               or dt.gnrc_dt is not null)
+                then coalesce(cast(replace(char(dt.gnrc_dt, iso),'-','') as char(8)),'00000000')
+            when lp.lp_cntr_rsn_cd in ('NT','ON','RJ','NN','PN','NR') or (paid.paid_to_dt=prod.prod_issue_dt)
+                then cast(replace(char(prod.prod_issue_dt, iso),'-','') as char(8))
+
+--      for     LifePro and Lapse status
+--         when lp.lp_cntr_rsn_cd='LP'
+--              then (case      when fc_dt.xi_rpu_cd    in      ('RPU','XI')    and
+--                                                              fc_dt.f_canc_dt = fc_dt.xi_rpu_end_dt + 1 days
+--                                      then    cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+--                                      when fc_dt.f_canc_dt > paid.paid_to_dt
+--                                              then cast(replace(char(paid.paid_to_dt, iso),'-','') as char(8))
+--                                      else cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+--                              end )
+            when lp.lp_cntr_rsn_cd='LP' and lp.lp_canc_rsn_cd='  '
+                                then cast(replace(char(paid.paid_to_dt, iso),'-','') as char(8))
+
+--      for LifePro and Converted status
+--          when lp.lp_cntr_rsn_cd='CV' and tc_dt.conv_dt is not null
+--              then (case      when fc_dt.f_canc_dt > tc_dt.conv_dt
+--                                      then cast(replace(char(tc_dt.conv_dt, iso),'-','') as char(8))
+--                              else cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+--                              end )
+            when lp.lp_canc_rsn_cd='FC'
+                                then cast(replace(char(paid.paid_to_dt, iso),'-','') as char(8))
+
+--      for LifePro and Surrender status
+--          when lp.lp_cntr_rsn_cd='SR'
+--              then (case      when fc_dt.xi_rpu_cd    in      ('RPU','XI')    and
+--                                                      fc_dt.f_canc_dt = fc_dt.xi_rpu_end_dt + 1 days
+--                              then    cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+--                              when fc_dt.f_canc_dt > paid.paid_to_dt
+--                                      then cast(replace(char(paid.paid_to_dt, iso),'-','') as char(8))
+--                              else cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+--                              end )
+            when lp.lp_canc_rsn_cd='SR'
+                                then cast(replace(char(paid.paid_to_dt, iso),'-','') as char(8))
+
+            when lp.lp_cntr_rsn_cd='EX'
+               then cast(replace(char(paid.paid_to_dt, iso),'-','') as char(8))
+            else
+                (case
+                  when dt.gnrc_dt is null
+                                        then cast(replace(char(paid.paid_to_dt, iso),'-','') as char(8))
+--                  then (case  when fc_dt.xi_rpu_cd    in      ('RPU','XI')    and
+--                                                              fc_dt.f_canc_dt = fc_dt.xi_rpu_end_dt + 1 days
+--                                              then    cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+--                                      when fc_dt.f_canc_dt > paid.paid_to_dt
+--                                              then cast(replace(char(paid.paid_to_dt, iso),'-','') as char(8))
+--                                      else cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+--                      end )
+                  else (case    when (dt.gnrc_dt <= paid.paid_to_dt) and (dt.gnrc_dt <= fc_dt.f_canc_dt)
+                                                then cast(replace(char(dt.gnrc_dt, iso),'-','') as char(8))
+                                        when (paid.paid_to_dt <= dt.gnrc_dt) and (paid.paid_to_dt <= fc_dt.f_canc_dt)
+                                                then cast(replace(char(paid.paid_to_dt, iso),'-','') as char(8))
+                                        when (fc_dt.f_canc_dt <= dt.gnrc_dt) and (fc_dt.f_canc_dt <= paid.paid_to_dt)
+                                                then cast(replace(char(fc_dt.f_canc_dt, iso),'-','') as char(8))
+                        end )
+                 end    )
+              end
+            )
+            end
+         )
+      else '00000000'
+   end),'00000000') as trm_dt,
+--              Will eventually be used in TAIX_INS_STATUS
+--   case
+--      when dt.gnrc_dt is null
+--      then 'A'
+--      else 'D'
+        case
+                when    nas.liv_num     <>      2       then
+                        case
+                                when    prod.val_inforce_cls    in      ('CANC','CANCD','UNB','UNK')    then
+                                        case
+                                                when    dt.gnrc_dt      is not null             then    'D'
+                                                when    nper.nature     in      ('PRI','SPO')   and     np.death_dt     is not null             then    'D'
+                                                else    'A'
+                                        end
+                                else    'A'
+                        end
+                else
+                        case
+                                when    prod.val_inforce_cls    not in  ('CANC','CANCD','UNB','UNK')
+                                        and     nper.nature     =       'CI1'
+                                        and     np.death_dt     is not null             then    'D'
+                                when    prod.val_inforce_cls    in      ('CANC','CANCD','UNB','UNK')
+                                        and     (nper.nature    in      ('CI1') or      nper2.nature    in      ('CI2') )
+                                        and     (np.death_dt    is not null     or      np2.death_dt    is not null     )       then    'D'
+                                when    prod.val_inforce_cls    in      ('CANC','CANCD','UNB','UNK')
+                                        and     dt.gnrc_dt      is not null             then    'D'
+                                else    'A'
+                        end
+   end as f_ins_stat,
+
+--              Will eventually be used in TAIX_INS_STATUS_2
+--   case
+--      when dt.gnrc_dt is null and ric.nature='CI1'
+--      then 'A'
+--      when dt.gnrc_dt is not null and ric.nature='CI1'
+--      then 'D'
+--      else ' '
+        case
+                when    nas.liv_num     <>      2       then    ' '
+                else
+                        case
+                                when    prod.val_inforce_cls    not in  ('CANC','CANCD','UNB','UNK')
+                                        and     np2.death_dt    is not null
+                                        and     nper2.nature    =       'CI2'           then    'D'
+                                when    prod.val_inforce_cls    in      ('CANC','CANCD','UNB','UNK')
+                                        and     nper2.nature    in      ('CI2')
+                                        and     np2.death_dt    is not null             then    'D'
+                                when    prod.val_inforce_cls    in      ('CANC','CANCD','UNB','UNK')
+                                        and     dt.gnrc_dt      is not null             then    'D'
+                                else    'A'
+                        end
+   end as s_ins_stat
+
+   from nvstage.nvt_tai_extrct ric
+   left outer join
+   (
+      pfmc.nvt_agmt_elem_prod prod
+              inner join pfmc.nvt_spec_nr spec
+      on spec.spec_id=prod.spec_id
+      and prod.end_dt is null
+              inner join pfmc.nvt_alt_spec nas
+      on nas.spec_id=prod.spec_id
+      and prod.end_dt is null
+   )
+   on ric.agmt_pkge_id=prod.agmt_pkge_id
+   and ric.agmt_elem_id=prod.agmt_elem_id
+   and prod.end_dt is null
+
+--      PB#18003 - Reins w/ BAR to TAI  (will be used for TAIX-STATUS)
+   left outer join pfmc.nvt_agmt_elem_prod baseprod
+   on ric.agmt_pkge_id  =       baseprod.agmt_pkge_id
+   and baseprod.agmt_elem_id    =       substr(ric.agmt_elem_id,1,9) || '0001'
+   and baseprod.end_dt is null
+
+--   left outer join pfmc.nvt_dt dt
+   left outer join session.death_dt dt
+   on ric.agmt_pkge_id=dt.agmt_pkge_id
+   and ric.agmt_elem_id=dt.agmt_elem_id
+--      and dt.dt_typ_cd=14
+        and dt.dt_typ_cd        in      (14,15,16)
+--   and dt.end_dt is null
+
+   left outer join pfmc.nvt_lp_stat lp
+   on ric.agmt_elem_id=lp.agmt_elem_id
+   and ric.agmt_pkge_id=lp.agmt_pkge_id
+   and lp.end_dt is null
+
+   left outer join pfmc.nvt_paid_to_dt paid
+   on ric.agmt_pkge_id=paid.agmt_pkge_id
+   and paid.end_dt is null
+
+   left outer join session.tc_term_dt tc_dt
+   on ric.agmt_pkge_id=tc_dt.orig_agmt_pkge_id
+
+   left outer join session.frst_canc_date fc_dt
+   on ric.agmt_pkge_id=fc_dt.agmt_pkge_id
+   and ric.agmt_elem_id=fc_dt.agmt_elem_id
+
+        left outer join pfmc.nvt_pers_elem_rel  nper
+                on      ric.agmt_pkge_id=nper.agmt_pkge_id
+                and     ric.agmt_elem_id=nper.agmt_elem_id
+                and     nper.end_dt     is null
+--              and     (       (nas.liv_num    =       1       and     nper.nature     in      ('PRI','SPO')   )       or
+--      Use PRI for base ((ELEM_ID,10,4)=0001) and SPO for all others
+                and     (       (nas.liv_num    =       1       and     nper.nature     in      ('PRI') and     substr(nper.agmt_elem_id,10,4)='0001'   )       or
+                                (nas.liv_num    =       1       and     nper.nature     in      ('SPO') and     substr(nper.agmt_elem_id,10,4)<>'0001'  )       or
+                                (nas.liv_num    =       2       and     nper.nature     in      ('CI1') )
+                        )
+
+        left outer join pfmc.nvt_pers   np
+                on      np.pers_id      =       nper.pers_id
+
+        left outer join pfmc.nvt_pers_elem_rel  nper2
+                on      ric.agmt_pkge_id=nper2.agmt_pkge_id
+                and     ric.agmt_elem_id=nper2.agmt_elem_id
+                and     nper2.end_dt    is null
+                and     (nas.liv_num    =       2       and     nper2.nature    in      ('CI2') )
+
+        left outer join pfmc.nvt_pers   np2
+                on      np2.pers_id     =       nper2.pers_id
+;
+
+==========  Db2 execution on shell script =========
+db2 +o connect to $DBNAME; >/dev/null 2>&1
+## Get last calendar date
+CALDATE=`db2 -x "values( PFMC.EOM_DT( '$VALDATE' ))"`
+db2_rc=$?
+
+if [[ "$db2_rc" -gt 4 || "$CALDATE" = "" ]] ; then
+   # Fail job here, unable to find last calendar day for corresponding processing date
+   echo "ERROR - the function PFMC.EOM_DT did not return a date for ${period}"
+   message="Unable to determine last calendar date."
+   $SCRIPTDIR/load_iw.sh -d $DBNAME -u -t ${table} -p ${period} -j ${CURR_STEP} -s f -r 1 -m "$message"
+   db2 terminate
+   exit 1
+fi
+
+outfile=${table}.dat
+
+cat ${SQLDIR}/${table}.sql |sed -e "s/FILE_NAME/${outfile}/g" -e "s/PRV_AMT_VALMONTH/$PRV_AMT_COL/g" \
+   -e "s/CAL_DATE/${CALDATE}/g" -e "s/VAL_DATE/${VAL_DT}/g" -e "s/ERROR_FILE/${outfile}.err/g" > ${SQLDIR}/${table}.sql.tmp
+
+db2 -astvf ${SQLDIR}/${table}.sql.tmp > ${LOGFILE}
+
+stat=$?
+
+## Provide read to the log file created
+[[ -f ${LOGFILE} ]] && chmod o+r ${LOGFILE}
+
+if [[ "$db2_rc" -gt 4 ]] ; then
+   echo "*ERROR* ${table} ${CURR_STEP} stat=$stat"
+$SCRIPTDIR/load_iw.sh -d $DBNAME -u -t ${table} -p ${period} -j ${CURR_STEP} -s f -r $stat -m " ERROR during extract"
+   db2 terminate
+   exit 1
+fi
+
+typeset -Z10 RECORD_COUNT=`wc -l ${outfile}  | awk '{ print $1 } '`
+
+## Parse for SQL errors, ignore SQL100, SQL347 and SQL437 errors.
+sqlcode=$(cat ${LOGFILE}|grep "sqlcode:"|egrep -v "sqlcode: 100|sqlcode: 437|sqlcode: 347"|awk '{total +=$7}; END {print total}')
+if [[ $sqlcode -eq 00000 ]]
+then
+   echo "SUCCESSFUL extract of ${table}"
+else
+   # Fail the job if a SQL code other than 100 or 437 is found.
+   echo "*ERROR* performing extract of ${table}"
+   $SCRIPTDIR/load_iw.sh -d $DBNAME -u -t ${table} -p ${period} -j ${CURR_STEP} -s f -r ${sqlcode} -m "ERROR found in extract"
+   db2 terminate
+   exit 99
+fi
+
 
