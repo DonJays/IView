@@ -1,3 +1,11 @@
+--Hierarchy problems -->https://learnsql.com/blog/how-to-query-hierarchical-data/
+      CTEs are also called  “WITH queries”
+
+      Self Join
+
+
+
+
 UNIQ key vs primary key ?
 What are Database Normal Forms?
 what is BCNF (Boyce-Codd Normal Form)?
